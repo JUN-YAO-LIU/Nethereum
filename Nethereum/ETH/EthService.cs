@@ -57,7 +57,13 @@ namespace Nethereum.ETH
         public async Task<BigInteger> CheckErc20AmountAsync(string token,string address)
         {
             var contract = _web3.Eth.ERC20.GetContractService(token);
-            var amount = await contract.BalancesQueryAsync(address);
+            if (contract == null)
+            {
+                throw new Exception("Failed to get contract service.");
+            }
+
+
+            var amount = await contract.BalanceOfQueryAsync(address);
 
             Console.WriteLine($"Token {token} 的餘額是: {amount}");
 
