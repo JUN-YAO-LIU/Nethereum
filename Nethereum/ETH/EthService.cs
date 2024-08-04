@@ -3,18 +3,28 @@ using Nethereum.Contracts;
 using Nethereum.Hex.HexConvertors.Extensions;
 using ETH.Models;
 using System.Numerics;
+using Nethereum.Contracts.Standards.ERC20.ContractDefinition;
 
 namespace Nethereum.ETH
 {
     internal class EthService
     {
-        private const string node = "https://eth-sepolia.g.alchemy.com/v2/DbEb9i79GXBoPu12o66beAkCtixxnaOg";
-
         private readonly Web3.Web3 _web3;
 
-        public EthService()
+        public EthService(string node)
         {
             _web3 = new Web3.Web3(node);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="privateKey"></param>
+        /// <param name="url"></param>
+        public EthService(string privateKey, string url)
+        {
+            var account = new Account(privateKey);
+            _web3 = new Web3.Web3(account, url);
         }
 
         public GenData GenerateAddress()
@@ -57,17 +67,40 @@ namespace Nethereum.ETH
         public async Task<BigInteger> CheckErc20AmountAsync(string token,string address)
         {
             var contract = _web3.Eth.ERC20.GetContractService(token);
+
             if (contract == null)
             {
                 throw new Exception("Failed to get contract service.");
             }
-
 
             var amount = await contract.BalanceOfQueryAsync(address);
 
             Console.WriteLine($"Token {token} 的餘額是: {amount}");
 
             return amount;
+        }
+
+        // send erc20 token
+        public async Task<string> SendErc20Async(string token, string from, string to, BigInteger amount)
+        {
+            var transactionMessage = new TransferFunction()
+            {
+                FromAddress = from,
+                To = to,
+                AmountToSend = Nethereum.Web3.Web3.Convert.ToWei(amount)
+                
+            };
+
+            var transferHandler = _web3.Eth.GetContractTransactionHandler<TransferFunction>();
+
+            var estimate = await transferHandler.EstimateGasAsync(token, transactionMessage);
+            transactionMessage.Gas = estimate.Value;
+            
+            var transactionReceipt = await transferHandler.SendRequestAndWaitForReceiptAsync(token,transactionMessage);
+
+            Console.WriteLine($"交易Hash {transactionReceipt.TransactionHash}");
+
+            return transactionReceipt.TransactionHash;
         }
 
         private double CalAmountToETHUint(BigInteger amount)
