@@ -1,9 +1,11 @@
 ﻿using Nethereum.Web3.Accounts;
-using Nethereum.Contracts;
 using Nethereum.Hex.HexConvertors.Extensions;
 using ETH.Models;
 using System.Numerics;
 using Nethereum.Contracts.Standards.ERC20.ContractDefinition;
+using Nethereum.Web3;
+using Nethereum.Util;
+using Nethereum.RPC.Eth.DTOs;
 
 namespace Nethereum.ETH
 {
@@ -83,24 +85,27 @@ namespace Nethereum.ETH
         // send erc20 token
         public async Task<string> SendErc20Async(string token, string from, string to, BigInteger amount)
         {
-            var transactionMessage = new TransferFunction()
+            // gas 欄位問題，有gas 就能發起交易，但是還是會失敗。
+            //var transferHandler = _web3.Eth.GetContractTransactionHandler<TransferFunction>();
+            //var transfer = new TransferFunction()
+            //{
+            //    To = to,
+            //    AmountToSend = amount,
+            //    Gas = 1000000,
+            //};
+
+            //var transactionReceipt = await transferHandler.SendRequestAsync(token, transfer);
+
+            // trasfer sucessfully。
+            var contract = _web3.Eth.ERC20.GetContractService(token);
+            var transactionReceipt = await contract.TransferRequestAsync(new TransferFunction
             {
-                FromAddress = from,
                 To = to,
-                AmountToSend = Nethereum.Web3.Web3.Convert.ToWei(amount)
-                
-            };
+                Value = amount
+            });
 
-            var transferHandler = _web3.Eth.GetContractTransactionHandler<TransferFunction>();
-
-            var estimate = await transferHandler.EstimateGasAsync(token, transactionMessage);
-            transactionMessage.Gas = estimate.Value;
-            
-            var transactionReceipt = await transferHandler.SendRequestAndWaitForReceiptAsync(token,transactionMessage);
-
-            Console.WriteLine($"交易Hash {transactionReceipt.TransactionHash}");
-
-            return transactionReceipt.TransactionHash;
+            Console.WriteLine($"交易Hash {transactionReceipt}");
+            return transactionReceipt;
         }
 
         private double CalAmountToETHUint(BigInteger amount)
